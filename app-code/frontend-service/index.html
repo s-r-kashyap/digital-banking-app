@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Simple Digital Bank</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; background: #f4f6f8; color: #222; }
+    .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    h2, h3 { margin-top: 0; }
+    input, select, button { padding: 8px 12px; margin: 4px 0; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+    button { background: #0066cc; color: #fff; border: none; cursor: pointer; }
+    button:hover { background: #0052a3; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
+    .hidden { display: none; }
+    .msg { padding: 10px; margin-bottom: 15px; border-radius: 4px; background: #e8f4fd; color: #084298; }
+    .err { background: #f8d7da; color: #842029; }
+  </style>
+</head>
+<body>
+
+  <h2>Digital Banking Portal</h2>
+  <div id="banner" class="msg hidden"></div>
+
+  <!-- 1. LOGIN VIEW -->
+  <div id="login-view" class="card">
+    <h3>Sign In</h3>
+    <input id="username" placeholder="Username (alice or bob)" value="alice">
+    <input id="password" type="password" placeholder="Password" value="password123">
+    <button onclick="login()">Log In</button>
+  </div>
+
+  <!-- 2. DASHBOARD VIEW -->
+  <div id="app-view" class="hidden">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <h3 id="welcome-title">Account Summary</h3>
+          <p><strong>Account ID:</strong> <span id="acc-id"></span> | <strong>Balance:</strong> $<span id="acc-bal"></span></p>
+        </div>
+        <button style="background:#666;" onclick="logout()">Logout</button>
+      </div>
+    </div>
+
+    <!-- MANAGE BENEFICIARIES -->
+    <div class="card">
+      <h3>Beneficiaries</h3>
+      <input id="ben-name" placeholder="Beneficiary Name (e.g. Bob)">
+      <input id="ben-acc" placeholder="Target Account ID (e.g. ACC1002)">
+      <button onclick="addBeneficiary()">Add Beneficiary</button>
+      <table>
+        <thead><tr><th>Name</th><th>Account ID</th></tr></thead>
+        <tbody id="ben-list"></tbody>
+      </table>
+    </div>
+
+    <!-- TRANSFER FUNDS -->
+    <div class="card">
+      <h3>Transfer Funds</h3>
+      <select id="transfer-to"></select>
+      <input id="transfer-amt" type="number" step="0.01" placeholder="Amount ($)">
+      <button onclick="transfer()">Send Money</button>
+    </div>
+
+    <!-- TRANSACTION HISTORY -->
+    <div class="card">
+      <h3>Transaction History</h3>
+      <table>
+        <thead><tr><th>ID</th><th>From</th><th>To</th><th>Amount</th><th>Status</th></tr></thead>
+        <tbody id="tx-list"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    let currentUser = null;
+    let currentAccountId = null;
+
+    function notify(text, isError = false) {
+      const b = document.getElementById("banner");
+      b.textContent = text;
+      b.className = isError ? "msg err" : "msg";
+    }
+
+    async function api(path, method = "GET", body = null) {
+      const opts = { method, headers: { "Content-Type": "application/json" } };
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch(path, opts);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Request failed");
+      return data;
+    }
+
+    async function login() {
+      try {
+        const username = document.getElementById("username").value.trim();
+        const password = document.getElementById("password").value.trim();
+        const data = await api("/api/login", "POST", { username, password });
+        currentUser = data.user;
+        document.getElementById("login-view").classList.add("hidden");
+        document.getElementById("app-view").classList.remove("hidden");
+        document.getElementById("banner").classList.add("hidden");
+        await loadDashboard();
+      } catch (e) { notify(e.message, true); }
+    }
+
+    function logout() {
+      currentUser = null;
+      document.getElementById("app-view").classList.add("hidden");
+      document.getElementById("login-view").classList.remove("hidden");
+      document.getElementById("banner").classList.add("hidden");
+    }
+
+    async function loadDashboard() {
+      const data = await api(`/api/dashboard/${currentUser}`);
+      currentAccountId = data.account.account_id;
+      document.getElementById("welcome-title").textContent = `Welcome, ${currentUser}`;
+      document.getElementById("acc-id").textContent = currentAccountId;
+      document.getElementById("acc-bal").textContent = data.account.balance.toFixed(2);
+
+      // Populate Beneficiaries Table & Transfer Dropdown
+      const benList = document.getElementById("ben-list");
+      const transferTo = document.getElementById("transfer-to");
+      benList.innerHTML = "";
+      transferTo.innerHTML = `<option value="">Select Beneficiary...</option>`;
+      data.beneficiaries.forEach(b => {
+        benList.innerHTML += `<tr><td>${b.name}</td><td>${b.target_account_id}</td></tr>`;
+        transferTo.innerHTML += `<option value="${b.target_account_id}">${b.name} (${b.target_account_id})</option>`;
+      });
+
+      // Populate Transactions Table
+      const txList = document.getElementById("tx-list");
+      txList.innerHTML = "";
+      data.transactions.slice().reverse().forEach(t => {
+        txList.innerHTML += `<tr><td>#${t.id}</td><td>${t.from_account}</td><td>${t.to_account}</td><td>$${t.amount.toFixed(2)}</td><td><strong>${t.status}</strong></td></tr>`;
+      });
+    }
+
+    async function addBeneficiary() {
+      try {
+        const name = document.getElementById("ben-name").value.trim();
+        const target_account_id = document.getElementById("ben-acc").value.trim();
+        if (!name || !target_account_id) return notify("Enter both name and account ID", true);
+        await api("/api/beneficiaries", "POST", { owner: currentUser, name, target_account_id });
+        document.getElementById("ben-name").value = "";
+        document.getElementById("ben-acc").value = "";
+        notify("Beneficiary added");
+        await loadDashboard();
+      } catch (e) { notify(e.message, true); }
+    }
+
+    async function transfer() {
+      try {
+        const to_account = document.getElementById("transfer-to").value;
+        const amount = parseFloat(document.getElementById("transfer-amt").value);
+        if (!to_account || !amount) return notify("Select a beneficiary and enter an amount", true);
+        await api("/api/transfer", "POST", { from_account: currentAccountId, to_account, amount });
+        document.getElementById("transfer-amt").value = "";
+        notify("Transfer successful!");
+        await loadDashboard();
+      } catch (e) { notify(e.message, true); }
+    }
+  </script>
+</body>
+</html>
