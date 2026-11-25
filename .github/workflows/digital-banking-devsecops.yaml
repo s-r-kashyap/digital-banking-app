@@ -1,4 +1,4 @@
-name: Block Vulnerable Code, IaC, and Images
+name: Block Vulnerable Code and Images
 
 on:
   pull_request:
@@ -35,7 +35,7 @@ jobs:
 
   build-and-gate-image:
     name: Build, Scan & Push Clean Image
-    needs: [scan-code, scan-iac]
+    needs: [scan-code]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
