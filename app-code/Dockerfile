@@ -14,7 +14,7 @@ WORKDIR /app
 COPY requirements.txt .
 
 RUN apt-get update && apt-get install -y --no-install-recommends libzstd1 && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
-RUN pip install --no-cache-dir --upgrade -r requirements.txt && pip install --no-cache-dir --upgrade "jaraco.context>=6.1.0" "wheel>=0.46.2"
+RUN python -m pip install --no-cache-dir --break-system-packages --upgrade -r requirements.txt && python -m pip install --no-cache-dir --break-system-packages --upgrade "setuptools>=70.0.0" "jaraco.context>=6.1.0" "wheel>=0.46.2"
 
 # Copy only the target microservice's code (includes index.html for frontend-service)
 COPY ${SERVICE_NAME}/ .
