@@ -13,7 +13,7 @@ WORKDIR /app
 # Install Python dependencies first (caches layer across all 6 builds)
 COPY requirements.txt .
 
-RUN apt-get update && apt-get install -y --no-install-recommends "libzstd1>=1.5.7+dfsg-1+deb13u1" && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends libzstd1 && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy only the target microservice's code (includes index.html for frontend-service)
