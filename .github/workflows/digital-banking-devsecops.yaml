@@ -11,6 +11,9 @@ permissions:
   contents: write
   packages: write
 
+concurrency:
+  group: digital-banking-app
+  cancel-in-progress: true
 jobs:
   scan-code:
     name: Block Vulnerable Code, Dependencies & Secrets
