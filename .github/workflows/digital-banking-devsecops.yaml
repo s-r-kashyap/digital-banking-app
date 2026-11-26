@@ -110,12 +110,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Ensure digital-banking namespace exists
-        shell: pwsh
+        shell: powershell
         run: |
           kubectl create namespace digital-banking --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Apply manifests from K8S/services and roll out
-        shell: pwsh
+        shell: powershell
         run: |
           $SERVICES = @(
             "frontend-service",
